@@ -546,7 +546,12 @@ fn build_gtk_button(bargs: &mut BuilderArgs) -> Result<gtk::Button> {
             //                              https://github.com/elkowar/eww/issues/1022
             connect_signal_handler!(gtk_widget, gtk_widget.connect_button_press_event(move |button, _| {
                 button.set_state_flags(gtk::StateFlags::ACTIVE, false);
-                glib::Propagation::Proceed
+                // Stop propagation so GTK's default button_press handler does not run.
+                // The default handler calls gtk_button_pressed() which sets button_down
+                // state and on some GDK backends triggers an implicit pointer grab that
+                // is never released if the onclick command opens a layer-shell surface
+                // that takes the Wayland seat before button_release arrives.
+                glib::Propagation::Stop
             }));
             // Safety net: if the pointer grab is broken (e.g. another window steals
             // focus), GTK sends grab_broken_event. Clear the :active state so the
