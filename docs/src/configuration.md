@@ -53,6 +53,7 @@ You can now open your first window by running `eww open example`! Glorious!
 |  `monitor` | Which monitor this window should be displayed on. See below for details.|
 | `geometry` | Geometry of the window.  |
 | `unfocus-close` | Automaticly close this window when losing keyboard focus. |
+| `passthrough` | Let pointer input pass through the window (an empty input region), e.g. for overlays. Widgets in it can't be clicked or hovered. |
 
 
 **`monitor`-property**

@@ -22,6 +22,7 @@ pub struct WindowInitiator {
     pub name: String,
     pub resizable: bool,
     pub unfocus_close: bool,
+    pub passthrough: bool,
     pub stacking: WindowStacking,
 }
 
@@ -42,6 +43,7 @@ impl WindowInitiator {
             resizable: window_def.eval_resizable(&vars)?,
             stacking: window_def.eval_stacking(&vars)?,
             unfocus_close: window_def.eval_close_on_focus_lost(&vars)?,
+            passthrough: window_def.eval_passthrough(&vars)?,
             local_variables: vars,
         })
     }

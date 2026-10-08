@@ -646,6 +646,10 @@ fn initialize_window<B: DisplayBackend>(
 
     window.realize();
 
+    if window_init.passthrough {
+        make_passthrough(&window);
+    }
+
     #[cfg(feature = "x11")]
     if B::IS_X11 {
         if let Some(geometry) = window_init.geometry {
@@ -684,6 +688,23 @@ fn apply_window_position(mut window_geometry: WindowGeometry, monitor_geometry: 
     }
 
     Ok(())
+}
+
+/// Let pointer input pass through the window to whatever is below it: an empty
+/// input region on its surface (X11: the XShape input region; Wayland:
+/// wl_surface.set_input_region). GTK keeps the shape for later realizes; it is
+/// set again on map and on resize, in case the backend reset it.
+fn make_passthrough(window: &Window) {
+    fn apply(window: &Window) {
+        let empty = gtk::cairo::Region::create();
+        window.input_shape_combine_region(Some(&empty));
+        if let Some(gdk_window) = window.window() {
+            gdk_window.input_shape_combine_region(&empty, 0, 0);
+        }
+    }
+    apply(window);
+    window.connect_map(apply);
+    window.connect_size_allocate(|window, _| apply(window));
 }
 
 fn on_screen_changed(window: &Window, _old_screen: Option<&gdk::Screen>) {

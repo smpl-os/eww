@@ -40,6 +40,7 @@ pub struct WindowDefinition {
     pub widget: WidgetUse,
     pub resizable: Option<SimplExpr>,
     pub unfocus_close: Option<SimplExpr>,
+    pub passthrough: Option<SimplExpr>,
     pub backend_options: BackendWindowOptionsDef,
 }
 
@@ -80,6 +81,14 @@ impl WindowDefinition {
             None => false,
         })
     }
+
+    /// Evaluate the `passthrough` field: the window takes no pointer input.
+    pub fn eval_passthrough(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<bool, EvalError> {
+        Ok(match &self.passthrough {
+            Some(expr) => expr.eval(local_variables)?.as_bool()?,
+            None => false,
+        })
+    }
 }
 
 impl FromAstElementContent for WindowDefinition {
@@ -95,6 +104,7 @@ impl FromAstElementContent for WindowDefinition {
         let stacking = attrs.ast_optional("stacking")?;
         let geometry = attrs.ast_optional("geometry")?;
         let unfocus_close = attrs.ast_optional("unfocus-close")?;
+        let passthrough = attrs.ast_optional("passthrough")?;
         let backend_options = BackendWindowOptionsDef::from_attrs(&mut attrs)?;
         let widget = iter.expect_any().map_err(DiagError::from).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
@@ -108,6 +118,7 @@ impl FromAstElementContent for WindowDefinition {
             stacking,
             geometry,
             unfocus_close,
+            passthrough,
             backend_options,
         })
     }
@@ -166,5 +177,31 @@ impl std::str::FromStr for WindowStacking {
             "bottom" | "bt" => WindowStacking::Bottom,
             "overlay" | "ov" => WindowStacking::Overlay,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{config::toplevel::TopLevel, parser::parse_string};
+
+    fn window(yuck: &str) -> WindowDefinition {
+        match TopLevel::from_ast(parse_string(0, yuck).unwrap()).unwrap() {
+            TopLevel::WindowDefinition(w) => w,
+            _ => panic!("not a window"),
+        }
+    }
+
+    #[test]
+    fn passthrough_defaults_to_false_and_evaluates_expressions() {
+        let vars = HashMap::new();
+        assert!(!window(r#"(defwindow w (box))"#).eval_passthrough(&vars).unwrap());
+        assert!(window(r#"(defwindow w :passthrough true (box))"#).eval_passthrough(&vars).unwrap());
+        assert!(!window(r#"(defwindow w :passthrough false (box))"#).eval_passthrough(&vars).unwrap());
+
+        let with_arg = window(r#"(defwindow w [through] :passthrough through (box))"#);
+        let args = HashMap::from([(VarName::from("through"), DynVal::from(true))]);
+        assert!(with_arg.eval_passthrough(&args).unwrap());
+        assert!(window(r#"(defwindow w :passthrough "nope" (box))"#).eval_passthrough(&vars).is_err());
     }
 }
